@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from . import models, database
 from datetime import date
 import random
 import string
+import io
+import openpyxl
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -81,12 +84,10 @@ def get_tracking(serial: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Material não encontrado")
     tracking = db.query(models.MaterialTracking).filter(models.MaterialTracking.material_id == material.id).all()
     return tracking
-    
-    from fastapi.responses import StreamingResponse
 
-
-import io
-import openpyxl
+# --------------------------
+# EXPORTAÇÃO EM EXCEL
+# --------------------------
 
 @router.get("/export/{serial}")
 def export_tracking(serial: str, db: Session = Depends(get_db)):
@@ -114,4 +115,3 @@ def export_tracking(serial: str, db: Session = Depends(get_db)):
 
     return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                               headers={"Content-Disposition": f"attachment; filename=rastreabilidade_{serial}.xlsx"})
-
