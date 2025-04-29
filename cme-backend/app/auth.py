@@ -81,3 +81,37 @@ def get_tracking(serial: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Material não encontrado")
     tracking = db.query(models.MaterialTracking).filter(models.MaterialTracking.material_id == material.id).all()
     return tracking
+    
+    from fastapi.responses import StreamingResponse
+
+
+import io
+import openpyxl
+
+@router.get("/export/{serial}")
+def export_tracking(serial: str, db: Session = Depends(get_db)):
+    material = db.query(models.Material).filter(models.Material.serial == serial).first()
+    if not material:
+        raise HTTPException(status_code=404, detail="Material não encontrado")
+
+    tracking = db.query(models.MaterialTracking).filter(models.MaterialTracking.material_id == material.id).all()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Rastreabilidade"
+
+    # Cabeçalho
+    ws.append(["Etapa", "Falha"])
+
+    # Dados
+    for etapa in tracking:
+        ws.append([etapa.step, etapa.failure or ""])
+
+    # Salvar para um buffer
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                              headers={"Content-Disposition": f"attachment; filename=rastreabilidade_{serial}.xlsx"})
+
